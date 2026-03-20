@@ -64,27 +64,38 @@ class App:
     def _evolution_loop(self) -> None:
         """Background thread: runs generations until stopped."""
         max_gen = 200
-        while not self._stop_flag.is_set():
-            if self.paused:
-                time.sleep(0.05)
-                continue
-            self.population.evolve_one_generation()
-            if self.population.generation >= max_gen:
-                break
-        # Final replay
-        self._start_replay()
+        try:
+            while not self._stop_flag.is_set():
+                if self.paused:
+                    time.sleep(0.05)
+                    continue
+                self.population.evolve_one_generation()
+                if self.population.generation >= max_gen:
+                    break
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Always switch to replay when done (or on error)
+            self._start_replay()
 
     # ------------------------------------------------------------------ #
     def _on_generation(self, pop: Population) -> None:
+        # Compute trajectory OUTSIDE the lock (can be slow)
+        snaps, fs = (None, None)
+        if pop.best:
+            try:
+                snaps, fs = simulate_trajectory(pop.best)
+            except Exception:
+                pass
+
         with self._lock:
             self.current_gen = pop.generation
             self.best_fit    = pop.best.fitness if pop.best else 0.0
             self.avg_fit     = (pop.avg_fitness_history[-1]
                                 if pop.avg_fitness_history else 0.0)
             self.best_fitness_history = list(pop.best_fitness_history)
-            # Refresh snapshot of current best
-            if pop.best:
-                snaps, fs = simulate_trajectory(pop.best)
+            if snaps is not None and fs is not None:
                 self.snapshots   = snaps
                 self.final_state = fs
                 self.landed      = fs.landed

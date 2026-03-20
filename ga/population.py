@@ -3,7 +3,6 @@ ga/population.py
 Manages a population of individuals over generations.
 """
 import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Optional
 
 from ga.individual import Individual
@@ -31,11 +30,9 @@ class Population:
 
     # ------------------------------------------------------------------ #
     def _evaluate_all(self) -> None:
-        """Evaluate all individuals (parallel via threads)."""
-        with ThreadPoolExecutor() as ex:
-            futures = {ex.submit(evaluate, ind): ind for ind in self.individuals}
-            for f in as_completed(futures):
-                f.result()  # ensures exceptions propagate
+        """Evaluate all individuals sequentially (safe for all thread contexts)."""
+        for ind in self.individuals:
+            evaluate(ind)
 
     # ------------------------------------------------------------------ #
     def evolve_one_generation(self) -> None:
