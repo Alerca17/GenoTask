@@ -6,7 +6,7 @@ No external image files required.
 import pygame
 import math
 import random
-from gui.colors import (
+from alien_lander_ga.gui.colors import (
     SHIP_BODY, SHIP_ACCENT, NEON_CYAN, NEON_MAGENTA,
     FLAME_INNER, FLAME_OUTER, PAD_COLOR, PAD_GLOW,
     NEON_ORANGE, NEON_YELLOW

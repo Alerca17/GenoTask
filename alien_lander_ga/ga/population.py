@@ -5,8 +5,8 @@ Manages a population of individuals over generations.
 import random
 from typing import Callable, List, Optional
 
-from ga.individual import Individual
-from ga.operators import tournament_select, crossover, mutate
+from alien_lander_ga.ga.individual import Individual
+from alien_lander_ga.ga.operators import tournament_select, crossover, mutate
 
 POPULATION_SIZE: int = 80
 ELITE_COUNT: int = 4

@@ -5,7 +5,7 @@ Genetic operators for (fx, fy) gene format.
 import random
 import numpy as np
 
-from ga.individual import Individual, N_GENES, MAX_FX, MAX_FY
+from alien_lander_ga.ga.individual import Individual, N_GENES, MAX_FX, MAX_FY
 
 TOURNAMENT_K:  int   = 5
 MUTATION_RATE: float = 0.08

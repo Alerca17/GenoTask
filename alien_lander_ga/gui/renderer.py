@@ -7,15 +7,15 @@ import math
 import random
 from typing import List, Tuple, Optional
 
-from gui.colors import (
+from alien_lander_ga.gui.colors import (
     DEEP_SPACE, SPACE_MID, NEON_CYAN, NEON_GREEN, NEON_ORANGE,
     NEON_BLUE, NEON_MAGENTA, NEON_YELLOW, TEXT_BRIGHT, TEXT_DIM,
     PANEL_BG, PANEL_BORDER, STAR_COLORS, GROUND_COLOR, GROUND_EDGE,
     COLOR_LANDED, COLOR_CRASHED, COLOR_FLYING,
 )
-from gui.assets import create_spacecraft_surface, create_flame_surface, create_pad_surface
-from simulation.physics import GROUND_Y
-from ga.fitness import PAD_X, PAD_WIDTH
+from alien_lander_ga.gui.assets import create_spacecraft_surface, create_flame_surface, create_pad_surface
+from alien_lander_ga.simulation.physics import GROUND_Y
+from alien_lander_ga.ga.fitness import PAD_X, PAD_WIDTH
 
 SCREEN_W = 900
 SCREEN_H = 700
@@ -277,7 +277,7 @@ class Renderer:
 
         self._draw_population_trails(trails)
 
-        from gui.assets import create_explosion_surface
+        from alien_lander_ga.gui.assets import create_explosion_surface
         if not hasattr(self, 'exp_surf'):
             self.exp_surf = create_explosion_surface(1.0)
 

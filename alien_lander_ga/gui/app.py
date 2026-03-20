@@ -7,12 +7,12 @@ import pygame
 import math
 from typing import List, Optional
 
-from gui.renderer import Renderer, SCREEN_W, SCREEN_H
-from gui.colors import NEON_CYAN, COLOR_LANDED, COLOR_CRASHED
-from ga.population import Population
-from ga.fitness import calculate_fitness, PAD_X, PAD_WIDTH, SPAWN_X, SPAWN_Y
-from ga.individual import N_GENES
-from simulation.physics import PhysicsState
+from alien_lander_ga.gui.renderer import Renderer, SCREEN_W, SCREEN_H
+from alien_lander_ga.gui.colors import NEON_CYAN
+from alien_lander_ga.ga.population import Population
+from alien_lander_ga.ga.fitness import calculate_fitness, PAD_X, PAD_WIDTH, SPAWN_X, SPAWN_Y
+from alien_lander_ga.ga.individual import N_GENES
+from alien_lander_ga.simulation.physics import PhysicsState
 
 FPS = 60
 

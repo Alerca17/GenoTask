@@ -4,8 +4,7 @@ Fitness evaluation with 4-direction (fx, fy) gene system.
 Spawn top-left, land on platform bottom-right — a diagonal challenge.
 """
 import math
-from ga.individual import Individual, N_GENES
-from simulation.physics import PhysicsState, GROUND_Y, WORLD_W
+from alien_lander_ga.simulation.physics import PhysicsState, GROUND_Y
 
 # ── Landing pad ───────────────────────────────────────────────────────── #
 PAD_X:     float = 520.0   # center of landing pad (right side)
