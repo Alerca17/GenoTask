@@ -16,18 +16,10 @@ SPAWN_X: float = 120.0
 SPAWN_Y: float = 70.0
 
 
-def evaluate(individual: Individual,
-             pad_x: float = PAD_X,
-             pad_width: float = PAD_WIDTH) -> float:
-    state = PhysicsState(x=SPAWN_X, y=SPAWN_Y)
-
-    for fx, fy in individual.genes:
-        if not state.alive:
-            break
-        state.step(fx, fy)
-
-    state.check_landing(pad_x, pad_width)
-
+def calculate_fitness(state: PhysicsState,
+                      pad_x: float = PAD_X,
+                      pad_width: float = PAD_WIDTH) -> float:
+    """Calculate fitness from a completed or terminated physics state."""
     # ── Fitness components ───────────────────────────────────────────── #
     dist_x = abs(state.x - pad_x)
     dist_y = abs(state.y - GROUND_Y)                        # how close vertically
@@ -40,23 +32,4 @@ def evaluate(individual: Individual,
     survive     = state.steps_survived * 0.8
 
     fitness = dist_score + vel_score + bonus + survive
-    individual.fitness = fitness
     return fitness
-
-
-def simulate_trajectory(individual: Individual,
-                         pad_x: float = PAD_X,
-                         pad_width: float = PAD_WIDTH):
-    """Re-run and return list of (x, y, angle, thrust_mag) snapshots."""
-    state = PhysicsState(x=SPAWN_X, y=SPAWN_Y)
-    snapshots = [(state.x, state.y, state.angle, 0.0)]
-
-    for fx, fy in individual.genes:
-        if not state.alive:
-            break
-        state.step(fx, fy)
-        thrust_mag = math.hypot(fx, fy)
-        snapshots.append((state.x, state.y, state.angle, thrust_mag))
-
-    state.check_landing(pad_x, pad_width)
-    return snapshots, state

@@ -156,21 +156,12 @@ class Renderer:
         self.screen.blit(flame_rot, (fx, fy))
 
     # ------------------------------------------------------------------ #
-    def _draw_trajectory(self, snapshots: list) -> None:
-        """Draw faded trajectory trail."""
-        if len(snapshots) < 2:
-            return
-        pts = [(int(s[0]), int(s[1])) for s in snapshots]
-        n = len(pts)
-        for i in range(1, n):
-            t = i / n
-            alpha = int(100 * t)
-            col = (
-                int(NEON_CYAN[0] * t),
-                int(NEON_CYAN[1] * t),
-                int(NEON_CYAN[2] * t),
-            )
-            pygame.draw.line(self.screen, col, pts[i-1], pts[i], 1)
+    def _draw_population_trails(self, trails: list) -> None:
+        """Draw dot-trails for all individuals similar to the reference video."""
+        for trail in trails:
+            for pt in trail:
+                # small cyan dots
+                pygame.draw.circle(self.screen, (30, 100, 180), (int(pt[0]), int(pt[1])), 1)
 
     # ------------------------------------------------------------------ #
     def _draw_panel(self, generation: int, best_fitness: float,
@@ -268,29 +259,50 @@ class Renderer:
             y += 18
 
     # ------------------------------------------------------------------ #
-    def draw_frame(self,
-                   snapshots: list,
-                   current_step: int,
-                   generation: int,
-                   best_fitness: float,
-                   avg_fitness: float,
-                   status: str,
-                   fitness_history: list,
-                   landed: bool = False,
-                   crashed: bool = False) -> None:
+    def draw_frame_live(self,
+                        states: list,
+                        trails: list,
+                        individuals: list,
+                        current_step: int,
+                        generation: int,
+                        best_fitness: float,
+                        avg_fitness: float,
+                        status: str,
+                        fitness_history: list) -> None:
+                        
         self.tick += 1
         self._draw_background()
         self._draw_ground()
         self._draw_pad()
 
-        if snapshots and current_step < len(snapshots):
-            trail = snapshots[:current_step + 1]
-            self._draw_trajectory(trail)
-            sx, sy, angle, thrust = snapshots[current_step]
-            self._draw_spacecraft(sx, sy, angle, thrust)
+        self._draw_population_trails(trails)
 
+        from gui.assets import create_explosion_surface
+        if not hasattr(self, 'exp_surf'):
+            self.exp_surf = create_explosion_surface(1.0)
+
+        # Draw all individuals
+        for i, state in enumerate(states):
+            if state.alive:
+                ind = individuals[i]
+                fx, fy = ind.genes[min(current_step, len(ind.genes)-1)]
+                thrust_mag = math.hypot(fx, fy)
+                self._draw_spacecraft(state.x, state.y, state.angle, thrust_mag)
+            elif state.crashed:
+                # Draw explosion if crashed
+                ex = int(max(10, min(SIM_W - 10, state.x)))
+                ey = int(max(10, min(SCREEN_H - 10, state.y)))
+                self.screen.blit(self.exp_surf, self.exp_surf.get_rect(center=(ex, ey)))
+            elif state.landed:
+                # Draw resting spacecraft, no thrust
+                self._draw_spacecraft(state.x, state.y, 0, 0)
+
+        # Check aggregate status
+        any_landed = any(s.landed for s in states)
+        all_crashed = all(s.crashed for s in states)
+        
         self._draw_panel(generation, best_fitness, avg_fitness, status,
-                         fitness_history, landed, crashed)
+                         fitness_history, any_landed, all_crashed)
 
     # ------------------------------------------------------------------ #
     def draw_message(self, msg: str, color=NEON_CYAN) -> None:

@@ -6,7 +6,6 @@ import random
 from typing import Callable, List, Optional
 
 from ga.individual import Individual
-from ga.fitness import evaluate
 from ga.operators import tournament_select, crossover, mutate
 
 POPULATION_SIZE: int = 80
@@ -29,16 +28,8 @@ class Population:
         self.on_generation = on_generation  # callback after each generation
 
     # ------------------------------------------------------------------ #
-    def _evaluate_all(self) -> None:
-        """Evaluate all individuals sequentially (safe for all thread contexts)."""
-        for ind in self.individuals:
-            evaluate(ind)
-
-    # ------------------------------------------------------------------ #
     def evolve_one_generation(self) -> None:
-        """Evaluate → select → reproduce one generation."""
-        self._evaluate_all()
-
+        """Selects → Reproduces one generation (fitness must be evaluated prior)."""
         # Sort descending by fitness
         self.individuals.sort(key=lambda i: i.fitness, reverse=True)
         best_now = self.individuals[0]
@@ -68,6 +59,3 @@ class Population:
 
         self.individuals = new_pop
         self.generation += 1
-
-        if self.on_generation:
-            self.on_generation(self)

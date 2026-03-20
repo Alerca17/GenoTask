@@ -1,28 +1,25 @@
 """
 gui/app.py
 Main application controller.
-Runs the GA in a background thread and animates the best individual.
+Runs the simulation live frame by frame.
 """
-import threading
-import time
 import pygame
-from typing import Optional
+import math
+from typing import List, Optional
 
 from gui.renderer import Renderer, SCREEN_W, SCREEN_H
-from gui.colors import NEON_CYAN, COLOR_LANDED, COLOR_CRASHED, NEON_ORANGE
+from gui.colors import NEON_CYAN, COLOR_LANDED, COLOR_CRASHED
 from ga.population import Population
-from ga.fitness import simulate_trajectory, PAD_X, PAD_WIDTH
+from ga.fitness import calculate_fitness, PAD_X, PAD_WIDTH, SPAWN_X, SPAWN_Y
+from ga.individual import N_GENES
+from simulation.physics import PhysicsState
 
 FPS = 60
-BASE_ANIM_SPEED = 3   # frames to advance per display frame during replay
-
 
 class AppState:
-    EVOLVING    = "EVOLVING"
-    REPLAYING   = "REPLAYING"
-    PAUSED      = "PAUSED"
-    FINISHED    = "FINISHED"
-
+    EVOLVING = "EVOLVING"
+    PAUSED   = "PAUSED"
+    FINISHED = "FINISHED"
 
 class App:
     def __init__(self):
@@ -31,81 +28,32 @@ class App:
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
         self.clock  = pygame.time.Clock()
         self.renderer = Renderer(self.screen)
-
+        
+        # Explosion asset preloading (using simple drawing for now, or Pygame circle)
         self._reset()
 
     # ------------------------------------------------------------------ #
     def _reset(self) -> None:
-        self.population  = Population(on_generation=self._on_generation)
+        self.population  = Population()
         self.state       = AppState.EVOLVING
         self.paused      = False
-        self.anim_step   = 0
-        self.anim_speed  = BASE_ANIM_SPEED
-        self.snapshots   = []
-        self.final_state = None
-        self.best_fitness_history: list = []
+        self.anim_speed  = 1
+        
         self.current_gen = 0
         self.best_fit    = 0.0
         self.avg_fit     = 0.0
-        self.landed      = False
-        self.crashed     = False
-        self._lock       = threading.Lock()
-        self._evo_thread: Optional[threading.Thread] = None
-        self._stop_flag  = threading.Event()
-        self._start_evolution()
+        
+        self._setup_generation()
 
-    # ------------------------------------------------------------------ #
-    def _start_evolution(self) -> None:
-        self._stop_flag.clear()
-        self._evo_thread = threading.Thread(target=self._evolution_loop, daemon=True)
-        self._evo_thread.start()
-
-    # ------------------------------------------------------------------ #
-    def _evolution_loop(self) -> None:
-        """Background thread: runs generations until stopped."""
-        max_gen = 200
-        try:
-            while not self._stop_flag.is_set():
-                if self.paused:
-                    time.sleep(0.05)
-                    continue
-                self.population.evolve_one_generation()
-                if self.population.generation >= max_gen:
-                    break
-        except Exception as exc:
-            import traceback
-            traceback.print_exc()
-        finally:
-            # Always switch to replay when done (or on error)
-            self._start_replay()
-
-    # ------------------------------------------------------------------ #
-    def _on_generation(self, pop: Population) -> None:
-        # Compute trajectory OUTSIDE the lock (can be slow)
-        snaps, fs = (None, None)
-        if pop.best:
-            try:
-                snaps, fs = simulate_trajectory(pop.best)
-            except Exception:
-                pass
-
-        with self._lock:
-            self.current_gen = pop.generation
-            self.best_fit    = pop.best.fitness if pop.best else 0.0
-            self.avg_fit     = (pop.avg_fitness_history[-1]
-                                if pop.avg_fitness_history else 0.0)
-            self.best_fitness_history = list(pop.best_fitness_history)
-            if snaps is not None and fs is not None:
-                self.snapshots   = snaps
-                self.final_state = fs
-                self.landed      = fs.landed
-                self.crashed     = fs.crashed
-
-    # ------------------------------------------------------------------ #
-    def _start_replay(self) -> None:
-        with self._lock:
-            self.anim_step = 0
-            self.state = AppState.REPLAYING
+    def _setup_generation(self) -> None:
+        """Create initial physics states and empty trails for the new generation."""
+        self.states: List[PhysicsState] = [
+            PhysicsState(x=SPAWN_X, y=SPAWN_Y) 
+            for _ in self.population.individuals
+        ]
+        self.trails: List[List[tuple]] = [[] for _ in self.population.individuals]
+        self.current_step = 0
+        self.frame_skip_counter = 0
 
     # ------------------------------------------------------------------ #
     def _handle_events(self) -> bool:
@@ -116,7 +64,6 @@ class App:
                 if event.key == pygame.K_SPACE:
                     self.paused = not self.paused
                 elif event.key == pygame.K_r:
-                    self._stop_flag.set()
                     self._reset()
                 elif event.key == pygame.K_UP:
                     self.anim_speed = min(self.anim_speed + 1, 10)
@@ -125,14 +72,54 @@ class App:
         return True
 
     # ------------------------------------------------------------------ #
-    def _determine_display_status(self) -> str:
-        if self.paused:
-            return "PAUSED"
-        if self.state == AppState.EVOLVING:
-            return "EVOLVING"
-        if self.state == AppState.REPLAYING:
-            return "REPLAYING"
-        return "DONE"
+    def _step_simulation(self) -> None:
+        """Advance the physics simulation by 1 step for all individuals."""
+        all_done = True
+        
+        for i, ind in enumerate(self.population.individuals):
+            state = self.states[i]
+            if state.alive and self.current_step < N_GENES:
+                fx, fy = ind.genes[self.current_step]
+                state.step(fx, fy)
+                
+                # Check ground hit during step
+                if not state.alive:
+                    state.check_landing(PAD_X, PAD_WIDTH)
+                    
+                all_done = False
+                
+                # Record trail point occasionally
+                if self.current_step % 3 == 0:
+                    self.trails[i].append((state.x, state.y))
+
+        if not all_done and self.current_step < N_GENES:
+            self.current_step += 1
+        else:
+            self._end_generation()
+
+    def _end_generation(self) -> None:
+        """All individuals stopped or ran out of genes. Evolve!"""
+        # Assign fitness
+        for i, ind in enumerate(self.population.individuals):
+            state = self.states[i]
+            # If they just ran out of genes mid-air, check landing status
+            if state.alive:
+                state.check_landing(PAD_X, PAD_WIDTH)
+            ind.fitness = calculate_fitness(state)
+            
+        # Update metrics
+        best_now = max((i for i in self.population.individuals), key=lambda x: x.fitness)
+        self.best_fit = best_now.fitness
+        self.avg_fit = sum(i.fitness for i in self.population.individuals) / len(self.population.individuals)
+        
+        # Evolve
+        self.population.evolve_one_generation()
+        self.current_gen = self.population.generation
+        
+        if self.current_gen >= 200:
+            self.state = AppState.FINISHED
+        else:
+            self._setup_generation()
 
     # ------------------------------------------------------------------ #
     def run(self) -> None:
@@ -140,46 +127,29 @@ class App:
         while running:
             running = self._handle_events()
 
-            # Advance animation frame
-            with self._lock:
-                snaps = list(self.snapshots)
-                anim_step = self.anim_step
-                gen  = self.current_gen
-                bf   = self.best_fit
-                af   = self.avg_fit
-                hist = list(self.best_fitness_history)
-                landed  = self.landed
-                crashed = self.crashed
-
-            if snaps:
-                if (self.state == AppState.EVOLVING and not self.paused):
-                    # Show live rolling preview
-                    self.anim_step = (self.anim_step + self.anim_speed) % max(len(snaps), 1)
-                elif self.state == AppState.REPLAYING:
-                    self.anim_step += self.anim_speed
-                    if self.anim_step >= len(snaps):
-                        self.anim_step = 0  # loop replay
-
-            status = self._determine_display_status()
-
-            self.renderer.draw_frame(
-                snapshots=snaps,
-                current_step=min(anim_step, len(snaps) - 1) if snaps else 0,
-                generation=gen,
-                best_fitness=bf,
-                avg_fitness=af,
+            if self.state == AppState.EVOLVING and not self.paused:
+                # Process physics steps based on animation speed
+                for _ in range(self.anim_speed):
+                    self._step_simulation()
+            
+            # Rendering
+            status = "PAUSED" if self.paused else self.state
+            
+            # Pass everything to renderer
+            self.renderer.draw_frame_live(
+                states=self.states,
+                trails=self.trails,
+                individuals=self.population.individuals,
+                current_step=self.current_step,
+                generation=self.current_gen,
+                best_fitness=self.best_fit,
+                avg_fitness=self.avg_fit,
                 status=status,
-                fitness_history=hist,
-                landed=landed,
-                crashed=crashed,
+                fitness_history=self.population.best_fitness_history
             )
-
-            # Landing/crash overlay
-            if self.state == AppState.REPLAYING:
-                if landed:
-                    self.renderer.draw_message("[OK] ATERRIZAJE EXITOSO", COLOR_LANDED)
-                elif crashed:
-                    self.renderer.draw_message("[!] NAVE DESTRUIDA", COLOR_CRASHED)
+            
+            if self.state == AppState.FINISHED:
+                self.renderer.draw_message("EVOLUTION COMPLETE!", NEON_CYAN)
 
             pygame.display.flip()
             self.clock.tick(FPS)

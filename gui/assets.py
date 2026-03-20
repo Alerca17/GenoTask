@@ -5,9 +5,11 @@ No external image files required.
 """
 import pygame
 import math
+import random
 from gui.colors import (
     SHIP_BODY, SHIP_ACCENT, NEON_CYAN, NEON_MAGENTA,
-    FLAME_INNER, FLAME_OUTER, PAD_COLOR, PAD_GLOW
+    FLAME_INNER, FLAME_OUTER, PAD_COLOR, PAD_GLOW,
+    NEON_ORANGE, NEON_YELLOW
 )
 
 
@@ -90,4 +92,22 @@ def create_pad_surface(pad_w: int, scale: float = 1.0) -> pygame.Surface:
     cx = pad_w // 2
     pygame.draw.line(surf, (255, 255, 100), (cx, 0), (cx, h), max(1, int(2*scale)))
 
+    return surf
+
+def create_explosion_surface(scale: float = 1.0) -> pygame.Surface:
+    """Return an explosion Graphic."""
+    w, h = int(40 * scale), int(40 * scale)
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    cx, cy = w // 2, h // 2
+    
+    # Draw jagged starburst
+    for _ in range(12):
+        angle = random.uniform(0, math.pi * 2)
+        dist = random.uniform(5 * scale, 18 * scale)
+        ex = cx + math.cos(angle) * dist
+        ey = cy + math.sin(angle) * dist
+        color = random.choice([NEON_ORANGE, NEON_MAGENTA, FLAME_INNER])
+        pygame.draw.line(surf, color, (cx, cy), (ex, ey), int(2 * scale))
+        
+    pygame.draw.circle(surf, FLAME_INNER, (cx, cy), int(6 * scale))
     return surf
