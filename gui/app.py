@@ -177,9 +177,9 @@ class App:
             # Landing/crash overlay
             if self.state == AppState.REPLAYING:
                 if landed:
-                    self.renderer.draw_message("✓  ATERRIZAJE EXITOSO", COLOR_LANDED)
+                    self.renderer.draw_message("[OK] ATERRIZAJE EXITOSO", COLOR_LANDED)
                 elif crashed:
-                    self.renderer.draw_message("✗  NAVE DESTRUIDA", COLOR_CRASHED)
+                    self.renderer.draw_message("[!] NAVE DESTRUIDA", COLOR_CRASHED)
 
             pygame.display.flip()
             self.clock.tick(FPS)

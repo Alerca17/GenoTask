@@ -213,9 +213,9 @@ class Renderer:
         # Status badge
         y += 4
         if landed:
-            scol, stxt = COLOR_LANDED,  " LANDED ✓ "
+            scol, stxt = COLOR_LANDED,  " [OK] LANDED "
         elif crashed:
-            scol, stxt = COLOR_CRASHED, " CRASHED ✗ "
+            scol, stxt = COLOR_CRASHED, " [!] CRASHED "
         else:
             scol, stxt = COLOR_FLYING,  f" {status} "
         badge = self.font_med.render(stxt, True, scol)
