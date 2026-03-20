@@ -37,7 +37,7 @@ class App:
         self.population  = Population()
         self.state       = AppState.EVOLVING
         self.paused      = False
-        self.anim_speed  = 1
+        self.anim_speed  = 3
         
         self.current_gen = 0
         self.best_fit    = 0.0
@@ -99,12 +99,15 @@ class App:
 
     def _end_generation(self) -> None:
         """All individuals stopped or ran out of genes. Evolve!"""
+        any_success = False
         # Assign fitness
         for i, ind in enumerate(self.population.individuals):
             state = self.states[i]
             # If they just ran out of genes mid-air, check landing status
             if state.alive:
                 state.check_landing(PAD_X, PAD_WIDTH)
+            if state.landed:
+                any_success = True
             ind.fitness = calculate_fitness(state)
             
         # Update metrics
@@ -116,7 +119,8 @@ class App:
         self.population.evolve_one_generation()
         self.current_gen = self.population.generation
         
-        if self.current_gen >= 200:
+        # Stop if we found a successful landing, or hit max generations
+        if self.current_gen >= 40 or any_success:
             self.state = AppState.FINISHED
         else:
             self._setup_generation()

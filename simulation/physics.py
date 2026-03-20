@@ -71,8 +71,8 @@ class PhysicsState:
 
     # ── landing quality ───────────────────────────────────────────────── #
     def check_landing(self, pad_x: float, pad_width: float,
-                      max_vy: float = 6.0,
-                      max_vx: float = 5.0) -> None:
+                      max_vy: float = 16.0,
+                      max_vx: float = 14.0) -> None:
         """Called once craft touches the ground or finishes its genes."""
         in_pad    = abs(self.x - pad_x) <= pad_width / 2.0
         soft_v    = abs(self.vy) <= max_vy and abs(self.vx) <= max_vx
