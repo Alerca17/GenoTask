@@ -1,19 +1,20 @@
 """
 ga/individual.py
 Individual (chromosome) for the alien landing GA.
-Each gene encodes one thrust command: (thrust, angle_delta)
-applied for a fixed dt step in the simulation.
+Gene = (fx, fy): direct force impulse each DT step.
+  fx ∈ [-MAX_FX, MAX_FX]  — horizontal thrust (left/right)
+  fy ∈ [-MAX_FY, MAX_FY]  — vertical thrust   (up/down, negative=up)
 """
 import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-# ---- tunable constants ----
-N_GENES: int = 120          # number of time-steps per individual
-MAX_THRUST: float = 15.0    # max engine thrust magnitude
-MAX_ANGLE_DELTA: float = 8.0  # max angle change per step (degrees)
+# ── tunable constants ────────────────────────────────────────────────── #
+N_GENES:  int   = 140     # simulation time steps
+MAX_FX:   float = 9.0     # max horizontal force
+MAX_FY:   float = 9.0     # max vertical force  (negative = thrust up)
 
-Gene = Tuple[float, float]  # (thrust, angle_delta)
+Gene = Tuple[float, float]   # (fx, fy)
 
 
 @dataclass
@@ -21,20 +22,17 @@ class Individual:
     genes: List[Gene] = field(default_factory=list)
     fitness: float = -1.0
 
-    # ------------------------------------------------------------------ #
     @classmethod
     def random(cls) -> "Individual":
-        """Create a random individual."""
         genes = [
             (
-                np.random.uniform(0, MAX_THRUST),
-                np.random.uniform(-MAX_ANGLE_DELTA, MAX_ANGLE_DELTA),
+                float(np.random.uniform(-MAX_FX, MAX_FX)),
+                float(np.random.uniform(-MAX_FY, MAX_FY)),
             )
             for _ in range(N_GENES)
         ]
         return cls(genes=genes)
 
-    # ------------------------------------------------------------------ #
     def clone(self) -> "Individual":
         return Individual(genes=list(self.genes), fitness=self.fitness)
 

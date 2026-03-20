@@ -138,8 +138,12 @@ class Renderer:
     # ------------------------------------------------------------------ #
     def _draw_spacecraft(self, sx: float, sy: float,
                          angle: float, thrust: float) -> None:
+        # Clamp to visible sim area
+        sx = max(20.0, min(SIM_W - 20.0, sx))
+        sy = max(20.0, min(SCREEN_H - 20.0, sy))
+
         ship = pygame.transform.rotozoom(self.ship_surf, -angle, 1.0)
-        flame = create_flame_surface(thrust / 15.0, self.tick, scale=1.0)
+        flame = create_flame_surface(min(thrust / 18.0, 1.0), self.tick, scale=1.0)
         flame_rot = pygame.transform.rotozoom(flame, -angle, 1.0)
 
         ship_rect = ship.get_rect(center=(int(sx), int(sy)))
@@ -236,11 +240,12 @@ class Renderer:
             pygame.draw.rect(self.screen, PANEL_BORDER, chart_rect, 1)
 
             mn = min(fitness_history)
-            mx = max(fitness_history) or 1
+            mx = max(fitness_history)
+            span = max(mx - mn, 1.0)   # guard against zero-division
             pts = []
             for i, v in enumerate(fitness_history[-chart_w:]):
                 px_x = x0 - 2 + int(i / max(len(fitness_history[-chart_w:]), 1) * chart_w)
-                px_y = y + chart_h - int((v - mn) / (mx - mn) * (chart_h - 4)) - 2
+                px_y = y + chart_h - int((v - mn) / span * (chart_h - 4)) - 2
                 pts.append((px_x, px_y))
             if len(pts) >= 2:
                 pygame.draw.lines(self.screen, NEON_GREEN, False, pts, 2)

@@ -1,47 +1,39 @@
 """
 ga/operators.py
-Genetic operators: tournament selection, single-point crossover, mutation.
+Genetic operators for (fx, fy) gene format.
 """
 import random
 import numpy as np
 
-from ga.individual import Individual, N_GENES, MAX_THRUST, MAX_ANGLE_DELTA
+from ga.individual import Individual, N_GENES, MAX_FX, MAX_FY
 
-TOURNAMENT_K: int = 5        # tournament size
-MUTATION_RATE: float = 0.08  # probability per gene
+TOURNAMENT_K:  int   = 5
+MUTATION_RATE: float = 0.08
+CROSSOVER_PROB: float = 0.85
 
 
-# ------------------------------------------------------------------ #
 def tournament_select(population: list, k: int = TOURNAMENT_K) -> Individual:
-    """Return the fittest individual from a random k-subset."""
     contestants = random.sample(population, k)
     return max(contestants, key=lambda ind: ind.fitness)
 
 
-# ------------------------------------------------------------------ #
 def crossover(parent_a: Individual, parent_b: Individual) -> tuple:
-    """Single-point crossover; returns two offspring."""
     cut = random.randint(1, N_GENES - 1)
     child_a = Individual(genes=parent_a.genes[:cut] + parent_b.genes[cut:])
     child_b = Individual(genes=parent_b.genes[:cut] + parent_a.genes[cut:])
     return child_a, child_b
 
 
-# ------------------------------------------------------------------ #
 def mutate(individual: Individual, rate: float = MUTATION_RATE) -> Individual:
-    """Randomly perturb genes in-place; returns the individual."""
     genes = list(individual.genes)
-    for i, (thrust, angle_delta) in enumerate(genes):
+    for i, (fx, fy) in enumerate(genes):
         if random.random() < rate:
-            # Gaussian noise around current value
-            new_thrust = float(np.clip(
-                thrust + np.random.normal(0, MAX_THRUST * 0.15),
-                0, MAX_THRUST
+            new_fx = float(np.clip(
+                fx + np.random.normal(0, MAX_FX * 0.2), -MAX_FX, MAX_FX
             ))
-            new_angle = float(np.clip(
-                angle_delta + np.random.normal(0, MAX_ANGLE_DELTA * 0.3),
-                -MAX_ANGLE_DELTA, MAX_ANGLE_DELTA
+            new_fy = float(np.clip(
+                fy + np.random.normal(0, MAX_FY * 0.2), -MAX_FY, MAX_FY
             ))
-            genes[i] = (new_thrust, new_angle)
+            genes[i] = (new_fx, new_fy)
     individual.genes = genes
     return individual

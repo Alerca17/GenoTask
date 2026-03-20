@@ -1,69 +1,82 @@
 """
 simulation/physics.py
-2D physics engine for the alien spacecraft simulation.
-Uses simple Euler integration.
+2D physics engine — direct (fx, fy) thrust model.
+Gravity pulls the craft downward; genes apply force in any direction.
 """
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # ---- world constants ----
-GRAVITY: float = 3.5          # pixels/s² downward (scaled for screen)
-DT: float = 0.25              # seconds per simulation step
-GROUND_Y: float = 650.0       # y-coordinate of ground (screen coords, down=+)
-WORLD_W: float = 900.0
+GRAVITY: float  = 4.0     # pixels/s² downward
+DT: float       = 0.22    # seconds per step
+GROUND_Y: float = 640.0   # y-coord of ground  (screen: down = +)
+WORLD_W: float  = 680.0   # simulation area width (= SIM_W in renderer)
+DRAG: float     = 0.985   # velocity damping per step
 
 
 @dataclass
 class PhysicsState:
-    x: float          # horizontal position (pixels)
-    y: float          # vertical position (pixels, 0=top)
-    vx: float = 0.0   # horizontal velocity
-    vy: float = 0.0   # vertical velocity (positive = downward)
-    angle: float = 0.0  # current spacecraft angle (degrees, 0=up)
+    x: float
+    y: float
+    vx: float = 0.0
+    vy: float = 0.0
     alive: bool = True
     landed: bool = False
     crashed: bool = False
     steps_survived: int = 0
 
-    def step(self, thrust: float, angle_delta: float) -> None:
-        """Advance simulation one step."""
+    # ── computed angle for rendering ──────────────────────────────────── #
+    @property
+    def angle(self) -> float:
+        """Visual angle (degrees) from velocity vector; 0 = pointing up."""
+        speed = math.hypot(self.vx, self.vy)
+        if speed < 0.3:
+            return 0.0
+        # atan2(vx, -vy): 0=up, +CW, −CCW
+        return math.degrees(math.atan2(self.vx, -self.vy))
+
+    # ── simulation step ───────────────────────────────────────────────── #
+    def step(self, fx: float, fy: float) -> None:
+        """Advance one DT step; fx/fy are direct force components."""
         if not self.alive:
             return
 
-        self.angle += angle_delta
-        self.angle = max(-90.0, min(90.0, self.angle))
-
-        # Thrust vector (angle 0 = upward, i.e. vy decreases)
-        rad = math.radians(self.angle)
-        ax = thrust * math.sin(rad)
-        ay = -thrust * math.cos(rad) + GRAVITY  # net downward acceleration
+        # Net acceleration
+        ax = fx
+        ay = fy + GRAVITY          # gravity always pulls down
 
         self.vx += ax * DT
         self.vy += ay * DT
+
+        # Drag (prevents runaway velocities)
+        self.vx *= DRAG
+        self.vy *= DRAG
 
         self.x += self.vx * DT
         self.y += self.vy * DT
         self.steps_survived += 1
 
-        # Clamp to world width
-        if self.x < 0 or self.x > WORLD_W:
-            self.vx *= -0.3
-            self.x = max(0.0, min(WORLD_W, self.x))
+        # Horizontal wall bounce
+        if self.x < 0.0:
+            self.vx = abs(self.vx) * 0.4
+            self.x = 0.0
+        elif self.x > WORLD_W:
+            self.vx = -abs(self.vx) * 0.4
+            self.x = WORLD_W
 
-        # Ground collision
+        # Ground check
         if self.y >= GROUND_Y:
             self.y = GROUND_Y
             self.alive = False
 
+    # ── landing quality ───────────────────────────────────────────────── #
     def check_landing(self, pad_x: float, pad_width: float,
-                      max_land_vy: float = 5.0,
-                      max_land_vx: float = 4.0) -> None:
-        """Evaluate landing quality once the craft hits the ground."""
-        in_pad = abs(self.x - pad_x) <= pad_width / 2
-        gentle_v = abs(self.vy) <= max_land_vy and abs(self.vx) <= max_land_vx
-        level = abs(self.angle) <= 20.0
-
-        if in_pad and gentle_v and level:
+                      max_vy: float = 6.0,
+                      max_vx: float = 5.0) -> None:
+        """Called once craft touches the ground."""
+        in_pad    = abs(self.x - pad_x) <= pad_width / 2.0
+        soft_v    = abs(self.vy) <= max_vy and abs(self.vx) <= max_vx
+        if in_pad and soft_v:
             self.landed = True
         else:
             self.crashed = True

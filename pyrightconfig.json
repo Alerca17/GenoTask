@@ -1,5 +1,8 @@
 {
   "pythonVersion": "3.12",
   "include": ["."],
-  "extraPaths": ["."]
+  "extraPaths": ["."],
+  "venvPath": ".",
+  "reportMissingImports": true,
+  "reportMissingModuleSource": false
 }
